@@ -2,12 +2,12 @@ TECHS = [
     "Python",
     "SQL",
     "JavaScript",
-    "JS",
-    "Django",
-    "REST",
-    "GIT",
+    " JS ",
+    " Django",
+    " REST ",
+    " GIT ",
     "Linux",
-    "API",
+    " API ",
     "Docker",
     "PostgreSQL",
     "HTML",
@@ -15,8 +15,8 @@ TECHS = [
     "OOP",
     "algorithms",
     "data structures",
-    "AI",
-    "ML",
+    " AI ",
+    " ML ",
     "Artificial Intelligence",
     "Machine Learning",
     "asyncio",
@@ -29,3 +29,9 @@ TECHS = [
     "Seaborn",
     "MongoDB",
 ]
+
+BASE_URL = "https://djinni.co/jobs/"
+
+PYTHON_VACANCIES = BASE_URL + "?primary_keyword=Python"
+
+CSV_FILE = "jobs.csv"
