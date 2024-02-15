@@ -7,8 +7,6 @@ from urllib.parse import urljoin
 import requests
 from dataclasses import dataclass, fields, astuple
 from bs4 import BeautifulSoup
-from selenium import webdriver
-from selenium.webdriver.common.by import By
 import asyncio
 from aiohttp import ClientSession
 
