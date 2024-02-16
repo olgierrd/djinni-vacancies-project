@@ -1,3 +1,4 @@
+import asyncio
 import csv
 import logging
 import sys
@@ -7,7 +8,6 @@ from urllib.parse import urljoin
 import requests
 from dataclasses import dataclass, fields, astuple
 from bs4 import BeautifulSoup
-import asyncio
 from aiohttp import ClientSession
 
 from config import BASE_URL, CSV_FILE, TECHS, PYTHON_VACANCIES
