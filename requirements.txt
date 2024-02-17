@@ -1,0 +1,8 @@
+requests~=2.31.0
+beautifulsoup4~=4.12.3
+selenium~=4.17.2
+aiohttp~=3.8.5
+jupyter
+numpy
+pandas
+matplotlib
