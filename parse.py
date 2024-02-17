@@ -32,73 +32,86 @@ logging.basicConfig(
 )
 
 
-def get_technologies(text: str) -> list[str]:
-    return list(set([tech for tech in TECHS if tech.lower() in text.lower()]))
+class JobScrapper:
+    def __init__(self) -> None:
+        self.VACANCY_FIELDS = [field.name for field in fields(Vacancy)]
 
+    @staticmethod
+    def get_technologies(text: str) -> list[str]:
+        return list(set([tech for tech in TECHS if tech.lower() in text.lower()]))
 
-def get_number_of_pages(soup: BeautifulSoup) -> int:
-    pagination = soup.select_one(".pagination")
-    if not pagination:
-        return 1
-    return int(pagination.select("li")[-2].text)
+    @staticmethod
+    def get_number_of_pages(soup: BeautifulSoup) -> int:
+        pagination = soup.select_one(".pagination")
+        if not pagination:
+            return 1
+        return int(pagination.select("li")[-2].text)
 
-
-async def get_full_description(vacancy_soup: BeautifulSoup) -> str:
-    detailed_url = urljoin(BASE_URL, vacancy_soup.select_one("a.job-list-item__link").get("href"))
-    async with ClientSession() as session:
-        async with session.get(detailed_url, ssl=False) as response:
-            page = await response.text()
-    soup = BeautifulSoup(page, "html.parser")
-    full_description = soup.select_one(".col-sm-8").text
-    return full_description
-
-
-async def parse_single_vacancy(vacancy_soup: BeautifulSoup) -> Vacancy:
-    return Vacancy(
-        title=vacancy_soup.select_one(".job-list-item__title").text.strip(),
-        company=vacancy_soup.select_one("a.mr-2").text.strip(),
-        technologies=get_technologies(await get_full_description(vacancy_soup))
-    )
-
-
-async def parse_single_page(page_soup: BeautifulSoup) -> [Vacancy]:
-    vacancies = page_soup.select(".job-list-item")
-    return await asyncio.gather(*[
-        parse_single_vacancy(vacancy_soup)
-        for vacancy_soup in vacancies
-    ])
-
-
-async def get_vacancies() -> [Vacancy]:
-    logging.info("Parsing vacancies")
-    home_page = requests.get(PYTHON_VACANCIES).content
-    soup = BeautifulSoup(home_page, "html.parser")
-    number_of_pages = get_number_of_pages(soup)
-    logging.info(f"Found {number_of_pages} pages")
-    logging.info(f"Parsing page 1")
-    vacancies = await parse_single_page(soup)
-    for page_number in range(2, number_of_pages + 1):
-        logging.info(f"Parsing page {page_number}")
-        page = requests.get(f"{PYTHON_VACANCIES}?page={page_number}").content
+    @staticmethod
+    async def get_full_description(vacancy_soup: BeautifulSoup) -> str:
+        detailed_url = urljoin(BASE_URL, vacancy_soup.select_one("a.job-list-item__link").get("href"))
+        try:
+            async with ClientSession() as session:
+                async with session.get(detailed_url, ssl=False) as response:
+                    page = await response.text()
+        except Exception as e:
+            logging.error(f"Error getting full description: {e}")
+            return ""
         soup = BeautifulSoup(page, "html.parser")
-        vacancies.extend(await parse_single_page(soup))
-        time.sleep(1)
-    return vacancies
+        full_description = soup.select_one(".col-sm-8").text
+        return full_description
 
+    async def parse_single_vacancy(self, vacancy_soup: BeautifulSoup) -> Vacancy:
+        return Vacancy(
+            title=vacancy_soup.select_one(".job-list-item__title").text.strip(),
+            company=vacancy_soup.select_one("a.mr-2").text.strip(),
+            technologies=self.get_technologies(await self.get_full_description(vacancy_soup))
+        )
 
-def save_to_csv(vacancies: [Vacancy]):
-    with open(CSV_FILE, "w", newline="") as file:
-        writer = csv.writer(file)
-        writer.writerow(VACANCY_FIELDS)
-        for vacancy in vacancies:
-            writer.writerow(astuple(vacancy))
+    async def parse_single_page(self, page_soup: BeautifulSoup) -> [Vacancy]:
+        vacancies = page_soup.select(".job-list-item")
+        return await asyncio.gather(*[
+            self.parse_single_vacancy(vacancy_soup)
+            for vacancy_soup in vacancies
+        ])
 
+    async def get_vacancies(self) -> [Vacancy]:
+        logging.info("Parsing vacancies")
+        try:
+            home_page = requests.get(PYTHON_VACANCIES).content
+        except Exception as e:
+            logging.error(f"Error getting vacancies: {e}")
+            return []
+        soup = BeautifulSoup(home_page, "html.parser")
+        number_of_pages = self.get_number_of_pages(soup)
+        logging.info(f"Found {number_of_pages} pages")
+        logging.info(f"Parsing page 1")
+        vacancies = await self.parse_single_page(soup)
+        for page_number in range(2, number_of_pages + 1):
+            logging.info(f"Parsing page {page_number}")
+            try:
+                page = requests.get(f"{PYTHON_VACANCIES}?page={page_number}").content
+            except Exception as e:
+                logging.error(f"Error parsing page {page_number}: {e}")
+                continue
+            soup = BeautifulSoup(page, "html.parser")
+            vacancies.extend(await self.parse_single_page(soup))
+            await asyncio.sleep(1)
+        return vacancies
 
-def parsing_for_data() -> None:
-    vacancies = asyncio.run(get_vacancies())
-    save_to_csv(vacancies)
+    def save_to_csv(self, vacancies: [Vacancy]):
+        with open(CSV_FILE, "w", newline="") as file:
+            writer = csv.writer(file)
+            writer.writerow(self.VACANCY_FIELDS)
+            for vacancy in vacancies:
+                writer.writerow(astuple(vacancy))
+
+    def parsing_for_data(self) -> None:
+        vacancies = asyncio.run(self.get_vacancies())
+        self.save_to_csv(vacancies)
 
 
 if __name__ == '__main__':
-    parsing_for_data()
+    scrapper = JobScrapper()
+    scrapper.parsing_for_data()
 
